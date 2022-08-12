@@ -1,0 +1,1200 @@
+option explicit
+
+'$include:"-Eftprtns.ebh"
+
+
+
+Sub Delay(segundos as Long)
+        Dim Time1 as Long
+        Dim Time2 as Long
+        Time1 = Timer
+        Time2 = Time1
+        Do While Time2 <= Time1+segundos
+            DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+            Time2 = Timer
+        Loop
+End Sub
+
+
+
+'[                                                                                                                               ]
+' ===============================================================================================================================
+'=                                                                                                                               =
+'= EXECUTIVE: Director de las operaciones de extraccion, transferencia y carga de datos hacia la BDC                             =
+'=                                                                                                                               =
+'= Formato de llamada:                                                                                                           =
+'=  \executive\ebrun c:\executive\sac\executive.ebx <host1>/<host2>/<host3>/<modo>/<fecha ultima>/<fecha actual>                 =
+'=                                                                                                                               =
+'= host1, host2, host3 = 0 | 1                                                                                                   =
+'= modo = manual --> permite arrancar una actualizacion diaria de forma manual y a cualquier hora del dia.                       =
+'=        auto ----> esta es la forma automatica de actualizacion diaria siguiendo el horario < 12:00a.m. >                      =
+'=        inicial -> permite arrancar una carga inicial total de todos los datos desde los host indicados y con rango de fechas. =
+'=                                                                                                                               =
+'= fecha inicio y fecha terminal = dd-mm-yyyy                                                                                    =
+'=                                                                                                                               =
+'= ** Executive esta organizado en tres faces bien definidas:                                                                    =
+'= Pre-ejecucion --> prepara todo el ambiente de ejecucion y variables de trabajo iniciales                                      =
+'= Ejecucion ------> envia los comandos de ejecucion de programas de extraccion a cada host seleccionado                         =
+'= Post-ejecucion -> ciclo de espera por final de extraccion en cada host y posterior transferencia y carga a BDC                =
+'=                                                                                                                               =
+' ===============================================================================================================================
+'[                                                                                                                               ]
+Sub Main
+        Dim hostemp1 as String   '<----- Estas variables contienen las divisiones que participan en el proceso actual.
+        Dim hostemp2 as String
+        Dim hostemp3 as String
+        Dim errflag as Integer  '<----- Indicador de posición de un error en el programa
+        errflag = 0
+        On Error Goto errores     '<----- Subrutina de manejo de Runtime Errors
+        
+
+'[                                                 ]
+' =================================================
+'=**************FACE DE PRE-EJECUCION**************=
+' =================================================
+'[                                                 ]
+        Dim meses (1 TO 12) as String    '<----- Tabla de nombre de meses con tres iniciales en ingles para SQL Server
+        meses(1)  = "JAN"
+        meses(2)  = "FEB"
+        meses(3)  = "MAR"
+        meses(4)  = "APR"
+        meses(5)  = "MAY"
+        meses(6)  = "JUN"
+        meses(7)  = "JUL"
+        meses(8)  = "AUG"
+        meses(9)  = "SEP"
+        meses(10) = "OCT"
+        meses(11) = "NOV"
+        meses(12) = "DEC"
+        Dim host1 as String   '<----- Argumentos para cada host (Orinoco, La Cont. y Canaima)
+        Dim host2 as String
+        Dim host3 as String
+        Dim modo as String
+        Dim Marca as String
+        host1 = GetField(Command, 1, "/")
+        host2 = GetField(Command, 2, "/")
+        host3 = GetField(Command, 3, "/")
+        hostemp1 = host1
+        hostemp2 = host2
+        hostemp3 = host3
+        modo  = GetField(command, 4, "/")   '<----- manual, auto o inicial
+
+        Dim Modelo as Object    '<----- Molde Objeto para crear sesiones Telnet (5250 y VT)
+
+        
+'[                                             ]
+' =============================================
+'=**************FACE DE EJECUCION**************=
+' =============================================
+'[                                             ]
+        If (host1 = "1" OR host2 = "1" OR host3 = "1") AND (modo = "auto" OR modo = "manual" OR modo = "inicial") Then
+
+            '[                                                   ]
+            ' ===================================================
+            '=DEFINICION DEL ARCHIVO DE LOG PARA DIVISION ORINOCO=
+            ' ===================================================
+            '[                                                   ]
+            Dim orinoco_log as Integer
+            orinoco_log = freefile
+            Open "orinoco_log.txt" For Append As #orinoco_log
+
+            '[                                                          ]
+            ' ==========================================================
+            '=DEFINICION DEL ARCHIVO DE LOG PARA DIVISION LA CONTINENTAL=
+            ' ==========================================================
+            '[                                                          ]
+            Dim continental_log as Integer
+            continental_log = freefile
+            Open "continental_log.txt" For Append As #continental_log
+
+            '[                                                   ]
+            ' ===================================================
+            '=DEFINICION DEL ARCHIVO DE LOG PARA DIVISION CANAIMA=
+            ' ===================================================
+            '[                                                   ]
+            Dim canaima_log as Integer
+            canaima_log = freefile
+            Open "canaima_log.txt" For Append As #canaima_log
+
+            If host1 = "1" Then
+                Print #orinoco_log,
+                Print #orinoco_log,
+                Print #orinoco_log,
+                Print #orinoco_log,
+                Print #orinoco_log, "PROCESO DE CONSOLIDACION DESDE DIVISION ORINOCO --- FECHA:", Date
+                Print #orinoco_log, "-----------------------------------------------"
+                Print #orinoco_log, "Ejecución del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
+            End If
+            If host2 = "1" Then
+                Print #continental_log,
+                Print #continental_log,
+                Print #continental_log,
+                Print #continental_log,
+                Print #continental_log, "PROCESO DE CONSOLIDACION DESDE DIVISION CONTINENTAL --- FECHA:", Date
+                Print #continental_log, "---------------------------------------------------"
+                Print #continental_log, "Ejecución del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
+            End If
+            If host3 = "1" Then
+                Print #canaima_log,
+                Print #canaima_log,
+                Print #canaima_log,
+                Print #canaima_log,
+                Print #canaima_log, "PROCESO DE CONSOLIDACION DESDE DIVISION CANAIMA --- FECHA:", Date
+                Print #canaima_log, "-----------------------------------------------"
+                Print #canaima_log, "Ejecución del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
+            End If
+
+            Dim fultima as String  '<----- almacena la fecha de ultima actualización para efectos de armar comandos
+            ' Componentes de la fecha de ultima actualización
+            Dim diau as String
+            Dim mesu as String
+            Dim anou as String
+            Dim factual as String  '<----- almacena la fecha actual
+            ' Componentes de la fecha actual
+            Dim diaa as String
+            Dim mesa as String
+            Dim anoa as String
+
+            '[                                                                       ]
+            ' =======================================================================
+            '=EN LOS MODOS MANUAL Y AUTOMATICO, LA FECHA ACTUAL ES TOMADA DEL SISTEMA=
+            ' =======================================================================
+            '[                                                                       ]
+            If modo = "auto" OR modo = "manual" Then
+                factual = Date   '<----- Fecha del sistema
+
+                ' *IMPORTANTE: En el modo automatico, el formato de fecha del sistema es m/d/yy.
+                '  Este es el formato que adquiere el usuario del schedule de WIN NT. Aqui se supone
+                '  que executive se ejecutara via scheduling y por lo tanto este sera el formato heredado en la ejecucion.
+
+                If modo = "auto" Then
+                    diaa = GetField(factual, 2, "/")
+                    If Val(diaa) < 10 Then
+                        diaa = "0" + diaa
+                    End If
+                    mesa = GetField(factual, 1, "/")
+                    If Val(mesa) < 10 Then
+                        mesa = "0" + mesa
+                    End If
+                    anoa = GetField(factual, 3, "/")
+                Else
+                    diaa = GetField(factual, 1, "/")
+                    mesa = GetField(factual, 2, "/")
+                    anoa = GetField(factual, 3, "/")
+                End If
+            Else
+                ' Extrae el componente de fecha actual en la línea de comandos
+                factual = GetField(Command, 6, "/")
+                diaa = GetField(factual, 1, "-")
+                mesa = GetField(factual, 2, "-")
+                anoa = GetField(factual, 3, "-")
+                ' Extrae el componente de fecha ultima actualización en la línea de comandos
+                fultima = GetField(Command, 5, "/")
+                diau = GetField(fultima, 1, "-")
+                mesu = GetField(fultima, 2, "-")
+                anou = GetField(fultima, 3, "-")
+            End If
+            Dim comando as String     '<----- Contiene el comando a ser enviado al host cualquiera
+            Dim spool as Integer   '<----- Variable de archivo de volcado de fecha ultima actualización
+            
+
+            '[                                                           ]
+            ' ===========================================================
+            '=SECCION PARA EJECUCION DE PROGRAMAS EN EL AS/400 DE ORINOCO=
+            ' ===========================================================
+            '[                                                           ]
+ejec1:
+            If host1 = "1" Then
+                If (modo = "auto" OR modo = "manual") AND Dir("c:\Entrante\Orinoco\Diaria\spool.txt") = "" Then
+                    Print #orinoco_log, ">>>>> ADVERTENCIA-BDC: No se encontró archivo Spool de Orinoco a las", Time
+                    Shell("sqlplus SWBAPPS/QTIP@VANTIVE @c:\Entrante\Orinoco\Diaria\ACT_FECHA_ORI.sql")
+                End If
+                ' Inicia conexión Telnet con host1
+                Print #orinoco_log, "AS/400 ORINOCO: Abriendo la sesión Telnet a las", Time
+                
+                Dim AS1 as Object
+                Set Modelo = CreateObject("HostExplorer")   '<----- Abre una interfaz con HostExplorer
+                Modelo.StartSession "ORINOCO.5250"   '<----- Abre una sesión Telnet con el host1
+                Set AS1 = Modelo.CurrentHost
+                'AS1.Hide   '<----- hace invisible la conexion Telnet
+                AS1.Keys("ENIAC@T")  '<----- User name
+                AS1.Keys("ORINOCO1@E")  '<----- User password
+                AS1.Keys("@c")   '<----- Envia Tecla F12 para retornar a linea de comandos
+                Print #orinoco_log, "AS/400 ORINOCO: Establecida la sesión Telnet a las", Time
+
+                '[                                                                                         ]
+                ' =========================================================================================
+                '=VERIFICA SI EXISTE EL ARCHIVO DE MARCA EN ESTE HOST                                      =
+                '=  La existencia de este archivo en el directorio del host y a esta altura del programa,  =
+                '=  indica que la etapa de transferencia de archivos durante la ultima corrida del proceso =
+                '=  no se realizó con exito y debe terminarse la extracción anterior.                      =
+                ' =========================================================================================
+                '[                                                                                         ]
+                InitFTP   '<----- Abre una interfaz con HCLFTP
+                SetReplyTimeoutValue(2000)
+                call ConnectToHost("10.1.10.36",21)    '<----- Abre una sesión FTP con el host de Orinoco
+                call ASCIIType    '<----- Tipo de transferencia=ASCII
+                call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
+                call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
+                marca = ls("MARK*")
+                If marca <> "" Then
+                    Print #orinoco_log, "AS/400 ORINOCO: Encontrada marca antes de empezar. Eliminada", Time
+                    AS1.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                End If
+                Delay(30)
+                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
+
+                '[                                                                               ]
+                ' ===============================================================================
+                '=EXISTEN DOS TIPOS DE PROGRAMA CL PARA LA EXTRACCION DE DATOS DESDE LOS AS/400: =
+                '=                                                                               =
+                '=  CLPROGRAMC  --> EXTRAE LOS DATOS PARA ACTUALIZACIONES DIARIAS                =
+                '=  CLPROGRAM   --> EXTRAE LOS DATOS PARA CARGAS INICIALES DE DATOS EN LA BDC    =
+                '=                                                                               =
+                '=  ESTOS PROGRAMAS CL Y LOS PROGRAMAS RPG QUE ESTE UTILIZA SE ENCUENTRAN EN LA  =
+                '=  LIBRERIA INTERFAZ2 EN CADA AS/400 (ORINOCO Y LA CONTINENTAL)                 =
+                ' ===============================================================================
+                '[                                                                               ]
+                If modo = "auto" OR modo = "manual" Then
+                    ' Abre el archivo de spool conteniendo la fecha de ultima actualización para este host
+                    spool = freefile
+                    Open "c:\Entrante\Orinoco\Diaria\spool.txt" For Input As #spool
+                    Line Input #spool, fultima    '<----- Busca la fecha de ultima actualizacion
+                    Line Input #spool, fultima
+                    Line Input #spool, fultima
+                    Line Input #spool, fultima
+                    fultima = Trim(fultima)
+                    diau = GetField(fultima, 1, "/")
+                    mesu = GetField(fultima, 2, "/")
+                    anou = GetField(fultima, 3, "/")
+                    Close #spool   '<----- Cierra el archivo de spool para este host
+                    
+                    '[                                                                 ]
+                    ' =================================================================
+                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN DIARIA=
+                    ' =================================================================
+                    '[                                                                 ]
+                     comando = "CALL INTERFAZ2/CLPROGRAMC PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
+                  '   comando = "CALL INTERFAZ2/CLPROGRAMC PARM('" + "15" + "' '" + "10" + "' '" + "2000" + "' '" + "17" + "' '" + "10" + "' '" + "2000" + "')@E"
+                ElseIf modo = "inicial" Then
+                
+                    '[                                                                  ]
+                    ' ==================================================================
+                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN INICIAL=
+                    ' ==================================================================
+                    '[                                                                  ]
+                    comando = "CALL INTERFAZ2/CLPROGRAM PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
+                End If
+                AS1.Keys(comando)  '<----- Somete el comando de llamada en la linea de comandos 5250
+                Print #orinoco_log, "AS/400 ORINOCO: ordenada la extracción a las", Time
+                Print #orinoco_log, "COMANDO ENVIADO ES:", comando
+            End If
+
+
+ejec2:
+            '[                                                                  ]
+            ' ==================================================================
+            '=SECCION PARA EJECUCION DE PROGRAMAS EN EL AS/400 DE LA CONTINENTAL=
+            ' ==================================================================
+            '[                                                                  ]
+            If host2 = "1" Then
+                If (modo = "auto" OR modo = "manual") AND Dir("c:\Entrante\Continental\Diaria\spool.txt") = "" Then
+                    Print #continental_log, ">>>>> ADVERTENCIA-BDC: No se encontró archivo Spool de La Continental a las", Time
+                    Shell("sqlplus SWBAPPS/QTIP@VANTIVE @c:\Entrante\Continental\Diaria\ACT_FECHA_CON.sql")
+                End If
+                ' Inicia conexión Telnet con host2
+                Print #continental_log, "AS/400 LA CONTINENTAL: Abriendo la sesión Telnet a las", Time
+                Dim AS2 as Object
+                Set Modelo = CreateObject("HostExplorer")   '<----- Abre una interfaz con HostExplorer
+                Modelo.StartSession "CONTINENTAL.5250"   '<----- Abre una sesión Telnet con el host2
+                Set AS2 = Modelo.CurrentHost
+                'AS2.Hide   '<----- hace invisible la conexion con el host
+                AS2.Keys("ENIAC@T")  '<----- User name
+                AS2.Keys("ORINOCO1@E")  '<----- User password
+                AS2.Keys("@c")   '<----- Envia Tecla F12 para retornar a linea de comandos
+                Print #continental_log, "AS/400 LA CONTINENTAL: Establecida la sesión Telnet a las", Time                
+
+                '[                                                                                         ]
+                ' =========================================================================================
+                '=VERIFICA SI EXISTE EL ARCHIVO DE MARCA EN ESTE HOST                                      =
+                '=  La existencia de este archivo en el directorio del host y a esta altura del programa,  =
+                '=  indica que la etapa de transferencia de archivos durante la ultima corrida del proceso =
+                '=  no se realizó con exito y debe terminarse la extracción anterior.                      =
+                ' =========================================================================================
+                '[                                                                                         ]
+                InitFTP   '<----- Abre una interfaz con HCLFTP
+                SetReplyTimeoutValue(2000)
+                call ConnectToHost("161.161.85.2",21)    '<----- Abre una sesión FTP con el host de Orinoco
+                call ASCIIType    '<----- Tipo de transferencia=ASCII
+                call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
+                call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
+                marca = ls("MARK*")
+                If marca <> "" Then
+                    Print #continental_log, "AS/400 LA CONTINENTAL: Encontrada marca antes de empezar. Eliminada", Time
+                    AS2.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                End If
+                Delay(30)
+                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
+
+                '[                                                                               ]
+                ' ===============================================================================
+                '=EXISTEN DOS TIPOS DE PROGRAMA CL PARA LA EXTRACCION DE DATOS DESDE LOS AS/400: =
+                '=                                                                               =
+                '=  CLPROGRAMC  --> EXTRAE LOS DATOS PARA ACTUALIZACIONES DIARIAS                =
+                '=  CLPROGRAM   --> EXTRAE LOS DATOS PARA CARGAS INICIALES DE DATOS EN LA BDC    =
+                '=                                                                               =
+                '=  ESTOS PROGRAMAS CL Y LOS PROGRAMAS RPG QUE ESTE UTILIZA SE ENCUENTRAN EN LA  =
+                '=  LIBRERIA INTERFAZ2 EN CADA AS/400 (ORINOCO Y LA CONTINENTAL)                 =
+                ' ===============================================================================
+                '[                                                                               ]
+                If modo = "auto" OR modo = "manual" Then
+                    ' Abre el archivo de spool conteniendo la fecha de ultima actualización para este host
+                    spool = freefile
+                    Open "c:\Entrante\Continental\Diaria\spool.txt" For Input As #spool
+                    Line Input #spool, fultima    '<----- Busca la fecha de ultima actualizacion
+                    Line Input #spool, fultima
+                    Line Input #spool, fultima
+                    Line Input #spool, fultima
+                    fultima = Trim(fultima)
+                    diau = GetField(fultima, 1, "/")
+                    mesu = GetField(fultima, 2, "/")
+                    anou = GetField(fultima, 3, "/")
+                    Close #spool   '<----- Cierra el archivo de spool para este host
+                    
+                    '[                                                                 ]
+                    ' =================================================================
+                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN DIARIA=
+                    ' =================================================================
+                    '[                                                                 ]
+                     comando = "CALL INTERFAZ2/CLPROGRAMC PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
+                    'comando = "CALL INTERFAZ2/CLPROGRAMC PARM('" + "01" + "' '" + "11" + "' '" + "1999" + "' '" + "15" + "' '" + "11" + "' '" + "1999" + "')@E"
+                ElseIf modo = "inicial" Then
+
+                    '[                                                                  ]
+                    ' ==================================================================
+                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN INICIAL=
+                    ' ==================================================================
+                    '[                                                                  ]
+                    comando = "CALL INTERFAZ2/CLPROGRAM PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
+                End If
+                AS2.Keys(comando)  '<----- Somete el comando de llamada en la linea de comandos 5250
+                Print #continental_log, "AS/400 LA CONTINENTAL: ordenada la extracción a las", Time
+                Print #continental_log, "COMANDO ENVIADO ES:", comando
+            End If
+
+
+ejec3:
+            '[                                                           ]
+            ' ===========================================================
+            '=SECCION PARA EJECUCION DE PROGRAMAS EN EL SQL NT DE CANAIMA=
+            ' ===========================================================
+            '[                                                           ]
+            If host3 = "1" Then
+                If (modo = "auto" OR modo = "manual") AND Dir("c:\Entrante\Canaima\Diaria\spool.txt") = "" Then
+                    Print #canaima_log, ">>>>> ADVERTENCIA-BDC: No se encontró archivo Spool de Canaima a las", Time
+                    Shell("sqlplus SWBAPPS/QTIP@VANTIVE @c:\Entrante\Canaima\Diaria\ACT_FECHA_CAN.sql")
+                End If
+
+
+
+
+                ' Inicia conexión Telnet con host3
+                'Print #canaima_log, "PC/NT CANAIMA: Abriendo la sesión Telnet a las", Time
+                'Dim vt as Object
+                'Set Modelo = CreateObject("HostExplorer")   '<----- Abre una interfaz con HostExplorer
+                'Modelo.StartSession "CANAIMA.VT"   '<----- Abre una sesión VT con el host3
+                'Set vt = Modelo.CurrentHost
+                'vt.Hide   '<----- hace invisible la conexion con el host
+                'vt.Keys("Adminsac\r")  '<----- User name
+                'vt.Keys("ADMINSAC\r")  '<----- User password
+                'vt.Keys("a")
+                'vt.Keys("cd c:\\Entrante\r")
+                'Print #canaima_log, "PC/NT CANAIMA: Establecida la sesión Telnet a las", Time
+
+
+
+
+                '[                                                                                         ]
+                ' =========================================================================================
+                '=VERIFICA SI EXISTE EL ARCHIVO DE MARCA EN ESTE HOST                                      =
+                '=  La existencia de este archivo en el directorio del host y a esta altura del programa,  =
+                '=  indica que la etapa de transferencia de archivos durante la ultima corrida del proceso =
+                '=  no se realizó con exito y debe terminarse la extracción anterior.                      =
+                ' =========================================================================================
+                '[                                                                                         ]
+                InitFTP   '<----- Abre una interfaz con HCLFTP
+                SetReplyTimeoutValue(600)   '<----- En el host debe existir un archivo \winnt\system\hummingbird\ftpd.ini
+                call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesión FTP con el host de Canaima
+                call ASCIIType    '<----- Tipo de transferencia=ASCII
+                call UserLogin("Adminsac", "ADMINSAC","")    '<----- User Login & Password
+                call ChangeHostDir("c:\Entrante")    '<----- Cambia el directorio de trabajo
+                marca = ls("mark3.txt")
+                If marca <> "" Then
+                    call DeleteHostFile("mark3.txt")   '<----- Elimina cualquier archivo de marca sobrante de anteriores operaciones
+                    Print #canaima_log, "PC/NT CANAIMA: Encontrada la marca antes de empezar. Eliminada", Time
+                End If
+                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
+                If modo = "auto" OR modo = "manual" Then
+                    ' Abre el archivo de spool conteniendo la fecha de ultima actualización para este host
+                    spool = freefile
+                    Open "c:\Entrante\Canaima\Diaria\spool.txt" For Input As #spool
+                    Line Input #spool, fultima    '<----- Busca la fecha de ultima actualizacion
+                    Line Input #spool, fultima
+                    Line Input #spool, fultima
+                    Line Input #spool, fultima
+                    fultima = Trim(fultima)
+                    diau = GetField(fultima, 1, "/")
+                    mesu = GetField(fultima, 2, "/")
+                    anou = GetField(fultima, 3, "/")
+                    Close #spool   '<----- Cierra el archivo de spool para este host
+                End If
+                ' Adaptacion del campo mes y año a formato para SQL Server en Canaima
+                mesa = meses(Val(mesa))
+                anoa = Right(anoa, 2)
+                mesu = meses(Val(mesu))
+                anou = Right(anou, 2)
+
+                '[                                                                          ]
+                ' ==========================================================================
+                '=EXECUTIVE DEBE CONSTRUIR, ENVIAR Y EJECUTAR REMOTAMENTE                   =
+                '=EL PROGRAMA DE EXTRACCION DE DATOS EN EL SQL NT DE CANAIMA.               =
+                '=(Algunos nombres de scripts cambian en modo manual o auto)                =
+                '=                                                                          =
+                '=TAMBIEN DEBE EJECUTAR EN ORDEN LOS SCRIPTS DE PREPARAR                    =
+                '=TABLAS TEMPORALES, EXTRACCION Y DESCARGA DE DATOS EN EL SQL NT DE CANAIMA =
+                ' ==========================================================================
+                '[                                                                          ]
+                Dim descarga as Integer  '<----- Archivo .bat para la ejecución de scripts SQL en Canaima
+                descarga = freefile
+                Open "c:\executive\sac\extrae.bat" For Append As #descarga
+
+                Print #descarga, "cd c:\Entrante"
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_RECIBO_POLIZA" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_RECIBO_CERTIFICADO" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_POLIZA_CERTIFICADO" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_AUTOMOVIL" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_PATRIM" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_PERSONAS" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_BENEFI" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_CLAUSULA" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_CLIENTES" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_COBERTURAS" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_GIROS" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_CONTRATO" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_CHEQUES" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_SINIESTRO" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_PAGOS" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_RESERVAS" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_RECAUDOS" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_COBER_SIN" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ENT_EDOCTA" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "DELETE FROM ERRORES" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                
+                Print #descarga, "dir /w > c:\Entrante\mark1.txt"
+                                
+                If modo = "inicial" Then
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_RECPOLIZA '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Else
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_RECPOLIZA_DIARIO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                End If
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_RECCER" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_POLIZA" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_CERTIF" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC INV_COB2" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Print #descarga, comando
+                If modo = "inicial" Then
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_CONTRATO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Else
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_CONTRATO_DIARIO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                End If
+                Print #descarga, comando
+                If modo = "inicial" Then
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_CHEQUES '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Else
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_CHEQUES_DIARIO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                End If
+                Print #descarga, comando
+                If modo = "inicial" Then
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_SINIESTRO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Else
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_SINIESTRO_DIARIO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                End If
+                Print #descarga, comando
+                If modo = "inicial" Then
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_EDOCTA '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                Else
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_EDOCTA_DIARIO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                End If
+                Print #descarga, comando
+                If modo = "auto" OR modo = "manual" Then
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_PAGOS_DIARIO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                    Print #descarga, comando
+                    comando = "isql /U sa /P 260161 /Q " + Chr$(34) + "EXEC CARGA_RESERVAS_DIARIO '" + diau + "-" + mesu + "-" + anou + "', '" + diaa + "-" + mesa + "-" + anoa + "'" + Chr$(34) + " /S WINDOWSNT /d ENIAC"
+                    Print #descarga, comando
+                End If
+
+                Print #descarga, "dir /w > c:\Entrante\mark2.txt"
+                
+                
+                Print #descarga, "bcp ENIAC..ENT_BENEFI out ENT_BEN.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_CLAUSULA out ENT_CLA.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_PATRIM out ENT_PAT.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_CHEQUES out ENT_CHQ.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_AUTOMOVIL out ENT_AUT.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_COBERTURAS out ENT_COB.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_RECIBO_POLIZA out ENT_RPO.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_RECIBO_CERTIFICADO out ENT_RCE.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_POLIZA_CERTIFICADO out ENT_POL.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_CLIENTES out ENT_CLI.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_CONTRATO out ENT_CON.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_GIROS out ENT_GIR.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_PERSONAS out ENT_PER.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_SINIESTRO out ENT_SIN.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_PAGOS out ENT_PAG.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_COBER_SIN out ENT_CBS.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_RESERVAS out ENT_RES.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_RECAUDOS out ENT_REC.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ENT_EDOCTA out ENT_EDO.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..ERRORES out ERRORES.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "bcp ENIAC..LOG_CARGA out LOG_CARGA.txt /c /t ? /U sa /P 260161 /S WINDOWSNT"
+                Print #descarga, "dir /w > c:\Entrante\mark3.txt"
+                
+                Close descarga
+
+                '[                                                  ]
+                ' ==================================================
+                '=ENVIA EL ARCHIVO BATCH MSDOS HACIA EL HOST CANAIMA=
+                ' ==================================================
+                '[                                                  ]
+                InitFTP   '<----- Abre una interfaz con HCLFTP
+                SetReplyTimeoutValue(2000)   '<----- En el host debe existir un archivo \winnt\system\hummingbird\ftpd.ini
+                call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesión FTP con el host de Canaima
+                call ASCIIType    '<----- Tipo de transferencia=ASCII
+                call UserLogin("Adminsac", "ADMINSAC","")    '<----- User Login & Password
+                call ChangeHostDir("c:\Entrante")    '<----- Cambia el directorio de trabajo
+                call PutFile("c:\executive\sac\extrae.bat", "c:\Entrante\extrae.bat")
+                Print #canaima_log, "PC/NT CANAIMA: Archivo extrae.bat generado y transferido", Time
+                Kill "c:\executive\sac\extrae.bat"   '<----- Elimina el archivo extrae.bat local
+
+                '[                                                                       ]
+                ' =======================================================================
+                '=ORDENA EL PREPARAR LAS TABLAS TEMPORALES ANTES DEL PROCESO DE SELECCIÓN=
+                ' =======================================================================
+                '[                                                                       ]
+
+
+                'vt.Keys("prepara.bat\r")  '<----- Comando de ejecución de preparar ambiente en SQL
+                'While ls("mark.txt") = ""   '<----- Espera por fin de ejecucion
+                '    Delay(30)
+                'Wend
+                'DeleteHostFile("mark.txt")
+                'Print #canaima_log, "PC/NT CANAIMA: Tablas preparadas para extraer", Time
+
+                '[                                                   ]
+                ' ===================================================
+                '=ORDENA LA SELECCIÓN DE LOS DATOS EN EL HOST CANAIMA=
+                ' ===================================================
+                '[                                                   ]
+                'vt.Keys("extrae.bat\r")  '<----- Comando de ejecución de la extraccion de datos
+                'While ls("mark.txt") = ""   '<----- Espera por fin de ejecucion
+                '    Delay(60)
+                'Wend
+                'DeleteHostFile("mark.txt")
+                'Print #canaima_log, "PC/NT CANAIMA: Extraccion terminada", Time
+
+                '[                                                                                         ]
+                ' =========================================================================================
+                '=ORDENA LA DESCARGA DE LOS DATOS DESDE LAS TABLAS TEMPORALES HACIA LOS ARCHIVOS TEMPORALES=
+                ' =========================================================================================
+                '[                                                                                         ]
+                'vt.Keys("descarga.bat\r")  '<----- Comando de ejecución de la descarga de datos hacia archivos txt
+                'While ls("mark.txt") = ""   '<----- Espera por fin de ejecucion
+                '    Delay(30)
+                'Wend
+                'Print #canaima_log, "PC/NT CANAIMA: Descargados los datos en archivos texto", Time
+                'DeleteHostFile("extrae.bat")
+                'Print #canaima_log, "PC/NT CANAIMA: Eliminado el archivo extrae.bat remoto", Time
+                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
+                'Print #canaima_log, "PC/NT CANAIMA: finalizado el proceso de extraccion a las", Time
+            End If
+
+trf:
+'[                                                  ]
+' ==================================================
+'=**************FASE DE POST-EJECUCION**************=
+' ==================================================
+'[                                                  ]
+            Dim directorio as String
+
+            Do
+
+trs1:
+                If host1 = "1" Then
+                    '[                                                 ]
+                    ' =================================================
+                    '=TRANSFERENCIA DE ARCHIVOS DESDE AS/400 DE ORINOCO=
+                    ' =================================================
+                    '[                                                 ]
+                    errflag = 1   '<----- marca
+                    InitFTP   '<----- Abre una interfaz con HCLFTP
+                    SetReplyTimeoutValue(2000)
+                    call ConnectToHost("10.1.10.36",21)    '<----- Abre una sesión FTP con el host de Orinoco
+                    call ASCIIType    '<----- Tipo de transferencia=ASCII
+                    call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
+                    call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
+                    Delay(5)
+                                        
+                    '[                                                                               ]
+                    ' ===============================================================================
+                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÓN Ó SELECCIÓN=
+                    ' ===============================================================================
+                    '[                                                                               ]
+                    marca = ls("MARK*")
+                    If marca <> "" Then
+                        Print #orinoco_log, "AS/400 ORINOCO: Inicio de transferencia en fecha y hora", Now
+                        If modo = "inicial" Then
+                            directorio = "c:\Entrante\Orinoco\Inicial\"
+                        Else
+                            directorio = "c:\Entrante\Orinoco\Diaria\"
+                        End If
+                        Print #orinoco_log, "AS/400 ORINOCO: Inicio de transferencia de Archivos en fecha y hora", Now
+                       call GetFile("ASEGHCM.ASEGHCM", directorio + "ASEGHCM.TXT")
+                       call GetFile("AUTOS.AUTOS", directorio + "AUTOS.TXT")
+                       call GetFile("BENEFI.BENEFI", directorio + "BENEFI.TXT")
+                       call GetFile("CHEQUE.CHEQUE", directorio + "CHEQUE.TXT")
+                       call GetFile("CLAUSULA.CLAUSULA", directorio + "CLAUSULA.TXT")
+                       call GetFile("CLIENTE.CLIENTE", directorio + "CLIENTE.TXT")
+                       call GetFile("COBERT.COBERT", directorio + "COBERT.TXT")
+                       call GetFile("CONTRATO.CONTRATO", directorio + "CONTRATO.TXT")
+                       call GetFile("GIROS.GIROS", directorio + "GIROS.TXT")
+
+
+
+
+                       call GetFile("PATRI.PATRI", directorio + "PATRI.TXT")
+                       call GetFile("POLCER.POLCER", directorio + "POLCER.TXT")
+
+
+
+
+
+                       call GetFile("POLIZA.POLIZA", directorio + "POLIZA.TXT")
+                       call GetFile("RECCER.RECCER", directorio + "RECCER.TXT")
+                       call GetFile("RECPOL.RECPOL", directorio + "RECPOL.TXT")
+                       call GetFile("SINIES.SINIES", directorio + "SINIES.TXT")
+                       call GetFile("RECAUDO.RECAUDO", directorio + "RECAUDO.TXT")
+                       call GetFile("PAGOS.PAGOS", directorio + "PAGOS.TXT")
+                       call GetFile("RESERVA.RESERVA", directorio + "RESERVA.TXT")
+                       call GetFile("COBERS.COBERS", directorio + "COBERS.TXT")
+                       call GetFile("EDOCTA.EDOCTA", directorio + "EDOCTA.TXT")
+
+                        '[                                                                                         ]
+                        ' =========================================================================================
+                        '=ESTE ES EL ARCHIVO DE COMANDOS CL EL CUAL VACIA LOS CONTENIDOS DE LOS ARCHIVOS TEMPORALES=
+                        ' =========================================================================================
+                        '[                                                                                         ]
+                        AS1.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                        Print #orinoco_log, "AS/400 ORINOCO: Final de transferencia en fecha y hora", Now
+
+                        '[                                                      ]
+                        ' ======================================================
+                        '=CARGA DE ARCHIVOS DESDE AS/400 DE ORINOCO HACIA LA BDC=
+                        ' ======================================================
+                        '[                                                      ]
+                        If Dir(directorio+"*.bad") <> "" Then
+                            Kill directorio + "*.bad"
+                        End If
+                        If Dir(directorio+"mark.txt") <> "" Then
+                           Kill directorio + "mark.txt"
+                        End if   
+                        Shell(directorio + "carga.bat")
+                        Do While Dir(directorio + "mark.txt") = ""
+                            DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+                        Loop
+                        Kill directorio + "mark.txt"
+                        Print #orinoco_log, "AS/400 ORINOCO: Final de carga de datos a BDC en fecha y hora", Now
+                        If Dir(directorio + "*.bad") <> "" Then
+                            Print #orinoco_log, ">>>>> ADVERTENCIA-BDC: se produjo una falla en la carga desde el host Orinoco a las", Time
+                        End If
+                        If modo <> "inicial" Then
+                            '[                                                                              ]
+                            ' ==============================================================================
+                            '=SI EL MODO ES DIARIA Ó MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
+                            ' ==============================================================================
+                            '[                                                                              ]
+                            Shell(directorio + "actd.bat")
+                            Do While Dir(directorio + "mark.txt") = ""
+                                DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+                            Loop
+                            Kill directorio + "mark.txt"
+                            Print #orinoco_log, "AS/400 ORINOCO: Final de actualizacion de datos en BDC en fecha y hora", Now
+                        End If
+
+
+                        '[                                                           ]
+                        ' ===========================================================
+                        '=SE BORRAN LOS ARCHIVOS DE TEXTO PARA LIBERAR ESPACIO EN C:\=
+                        ' ===========================================================
+                        '[                                                           ]
+                        'Kill directorio + "ASEGHCM.TXT"
+                        'Kill directorio + "AUTOS.TXT"
+                        'Kill directorio + "BENEFI.TXT"
+                        'Kill directorio + "CHEQUE.TXT"
+                        'Kill directorio + "CLAUSULA.TXT"
+                        'Kill directorio + "CLIENTE.TXT"
+                        'Kill directorio + "COBERT.TXT"
+                        'Kill directorio + "CONTRATO.TXT"
+                        'Kill directorio + "GIROS.TXT"
+                        'Kill directorio + "PATRI.TXT"
+                        'Kill directorio + "POLCER.TXT"
+                        'Kill directorio + "POLIZA.TXT"
+                        'Kill directorio + "RECCER.TXT"
+                        'Kill directorio + "RECPOL.TXT"
+                        'Kill directorio + "SINIES.TXT"
+                        'Kill directorio + "RECAUDO.TXT"
+                        'Kill directorio + "PAGOS.TXT"
+                        'Kill directorio + "RESERVA.TXT"
+                        'Kill directorio + "COBERS.TXT"
+                        'Kill directorio + "EDOCTA.TXT"
+                        host1 = "0"  ' Fin del procesamiento para host1
+                        ' Finaliza la conexión Telnet con el host1
+                        AS1.Keys("90@E")  '<----- Salida de sesión con OS/400
+                        AS1.Disconnect
+                        AS1.Close
+                    End If
+                    call DisconnectFromHost   '<----- Cierra la sesión FTP
+                    call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
+                End If
+
+trs2:
+                If host2 = "1" Then
+                    '[                                                        ]
+                    ' ========================================================
+                    '=TRANSFERENCIA DE ARCHIVOS DESDE AS/400 DE LA CONTINENTAL=
+                    ' ========================================================
+                    '[                                                        ]
+                    errflag = 2 '<----- marca
+                    InitFTP   '<----- Abre una interfaz con HCLFTP
+                    SetReplyTimeoutValue(2000)
+                    call ConnectToHost("161.161.85.2",21)    '<----- Abre una sesión FTP con el host La Continental
+                    call ASCIIType    '<----- Tipo de transferencia=ASCII
+                    call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
+                    call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
+                    Delay(5)
+
+                    '[                                                                               ]
+                    ' ===============================================================================
+                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÓN Ó SELECCIÓN=
+                    ' ===============================================================================
+                    '[                                                                               ]
+                    marca = ls("MARK*")
+                    If marca <> "" Then
+                        Print #continental_log, "AS/400 LA CONTINENTAL: Inicio de transferencia en fecha y hora", Now
+                        If modo = "inicial" Then
+                            directorio = "c:\Entrante\Continental\Inicial\"
+                        Else
+                            directorio = "c:\Entrante\Continental\Diaria\"
+                        End If
+                        call GetFile("ASEGHCM.ASEGHCM", directorio + "ASEGHCM.TXT")
+                        call GetFile("AUTOS.AUTOS", directorio + "AUTOS.TXT")
+                        call GetFile("BENEFI.BENEFI", directorio + "BENEFI.TXT")
+                        call GetFile("CHEQUE.CHEQUE", directorio + "CHEQUE.TXT")
+                        call GetFile("CLAUSULA.CLAUSULA", directorio + "CLAUSULA.TXT")
+                        call GetFile("CLIENTE.CLIENTE", directorio + "CLIENTE.TXT")
+                        call GetFile("COBERT.COBERT", directorio + "COBERT.TXT")
+                        call GetFile("CONTRATO.CONTRATO", directorio + "CONTRATO.TXT")
+                        call GetFile("GIROS.GIROS", directorio + "GIROS.TXT")
+                        call GetFile("PATRI.PATRI", directorio + "PATRI.TXT")
+                        call GetFile("POLCER.POLCER", directorio + "POLCER.TXT")
+                        call GetFile("POLIZA.POLIZA", directorio + "POLIZA.TXT")
+                        call GetFile("RECCER.RECCER", directorio + "RECCER.TXT")
+                        call GetFile("RECPOL.RECPOL", directorio + "RECPOL.TXT")
+                        call GetFile("SINIES.SINIES", directorio + "SINIES.TXT")
+                        call GetFile("RECAUDO.RECAUDO", directorio + "RECAUDO.TXT")
+                        call GetFile("PAGOS.PAGOS", directorio + "PAGOS.TXT")
+                        call GetFile("RESERVA.RESERVA", directorio + "RESERVA.TXT")
+                        call GetFile("COBERS.COBERS", directorio + "COBERS.TXT")
+                        call GetFile("EDOCTA.EDOCTA", directorio + "EDOCTA.TXT")
+
+                        '[                                                                                         ]
+                        ' =========================================================================================
+                        '=ESTE ES EL ARCHIVO DE COMANDOS CL EL CUAL VACIA LOS CONTENIDOS DE LOS ARCHIVOS TEMPORALES=
+                        ' =========================================================================================
+                        '[                                                                                         ]
+                        AS2.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                        Print #continental_log, "AS/400 ORINOCO: Final de transferencia en fecha y hora", Now
+                        
+                        '[                                                             ]
+                        ' =============================================================
+                        '=CARGA DE ARCHIVOS DESDE AS/400 DE LA CONTINENTAL HACIA LA BDC=
+                        ' =============================================================
+                        '[                                                             ]
+                        If Dir(directorio+"*.bad") <> "" Then
+                            Kill directorio + "*.bad"
+                        End If
+                        If Dir(directorio+"mark.txt") <> "" Then
+                           Kill directorio + "mark.txt"
+                        End if   
+                        Shell(directorio + "carga.bat")
+                        Print #continental_log, "AS/400 LA CONTINENTAL: Final de carga de datos a BDC en fecha y hora", Now
+                        Do While Dir(directorio + "mark.txt") = ""
+                            DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+                        Loop
+                        Kill directorio + "mark.txt"
+                        If Dir(directorio + "*.bad") <> "" Then
+                            Print #continental_log, ">>>>> ADVERTENCIA-BDC: se produjo una falla en la carga de datos desde el host La Continental hacia ORACLE a las", Time
+                        End If
+                        If modo <> "inicial" Then
+                            '[                                                                              ]
+                            ' ==============================================================================
+                            '=SI EL MODO ES DIARIA Ó MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
+                            ' ==============================================================================
+                            '[                                                                              ]
+                            Shell(directorio + "actd.bat")
+                            Do While Dir(directorio + "mark.txt") = ""
+                                DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+                            Loop
+                            Print #continental_log, "AS/400 LA CONTINENTAL: Encontrada la marca de actd en fecha y hora", Now
+                            Kill directorio + "mark.txt"
+                            Print #continental_log, "AS/400 LA CONTINENTAL: Final de actualizacion de datos en BDC en fecha y hora", Now
+                        End If
+
+
+                        '[                                                           ]
+                        ' ===========================================================
+                        '=SE BORRAN LOS ARCHIVOS DE TEXTO PARA LIBERAR ESPACIO EN C:\=
+                        ' ===========================================================
+                        '[                                                           ]
+                        'Kill directorio + "ASEGHCM.TXT"
+                        'Kill directorio + "AUTOS.TXT"
+                        'Kill directorio + "BENEFI.TXT"
+                        'Kill directorio + "CHEQUE.TXT"
+                        'Kill directorio + "CLAUSULA.TXT"
+                        'Kill directorio + "CLIENTE.TXT"
+                        'Kill directorio + "COBERT.TXT"
+                        'Kill directorio + "CONTRATO.TXT"
+                        'Kill directorio + "GIROS.TXT"
+                        'Kill directorio + "PATRI.TXT"
+                        'Kill directorio + "POLCER.TXT"
+                        'Kill directorio + "POLIZA.TXT"
+                        'Kill directorio + "RECCER.TXT"
+                        'Kill directorio + "RECPOL.TXT"
+                        'Kill directorio + "SINIES.TXT"
+                        'Kill directorio + "RECAUDO.TXT"
+                        'Kill directorio + "PAGOS.TXT"
+                        'Kill directorio + "RESERVA.TXT"
+                        'Kill directorio + "COBERS.TXT"
+                        'Kill directorio + "EDOCTA.TXT"
+                        host2 = "0"  ' Fin del procesamiento para host2
+                        ' Finaliza la conexión Telnet con el host2
+                        AS2.Keys("90@E")  '<----- Salida de sesión con OS/400
+                        AS2.Disconnect
+                        AS2.Close
+                    End If
+                    call DisconnectFromHost   '<----- Cierra la sesión FTP
+                    call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
+                End If
+
+trs3:
+                If host3 = "1" Then
+                    '[                                                 ]
+                    ' =================================================
+                    '=TRANSFERENCIA DE ARCHIVOS DESDE SQL NT DE CANAIMA=
+                    ' =================================================
+                    '[                                                 ]
+                    
+                    errflag = 3 '<----- marca
+                    InitFTP   '<----- Abre una interfaz con HCLFTP
+                    SetReplyTimeoutValue(2000)
+                    call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesión FTP con el host Canaima
+                    call ASCIIType    '<----- Tipo de transferencia=ASCII
+                    call UserLogin("Adminsac", "ADMINSAC","")    '<----- User Login & Password
+                    call ChangeHostDir("c:\Entrante")    '<----- Cambia el directorio de trabajo
+                    Delay(5)
+                                        
+                    '[                                                                               ]
+                    ' ===============================================================================
+                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÓN Ó SELECCIÓN=
+                    ' ===============================================================================
+                    '[                                                                               ]
+                    marca = ls("mark3.txt")
+                    If marca <> "" Then
+                        Print #canaima_log, "PC/NT CANAIMA: Inicio de transferencia en fecha y hora", Now
+                        If modo = "inicial" Then
+                            directorio = "c:\Entrante\Canaima\Inicial\"
+                        Else
+                            directorio = "c:\Entrante\Canaima\Diaria\"
+                        End If
+                        call GetFile("ent_per.txt", directorio + "ent_per.txt")
+                        call GetFile("ent_aut.txt", directorio + "ent_aut.txt")
+                        call GetFile("ent_ben.txt", directorio + "ent_ben.txt")
+                        call GetFile("ent_chq.txt", directorio + "ent_chq.txt")
+                        call GetFile("ent_cla.txt", directorio + "ent_cla.txt")
+                        call GetFile("ent_cli.txt", directorio + "ent_cli.txt")
+                        call GetFile("ent_cob.txt", directorio + "ent_cob.txt")
+                        call GetFile("ent_con.txt", directorio + "ent_con.txt")
+                        call GetFile("ent_gir.txt", directorio + "ent_gir.txt")
+                        call GetFile("ent_pat.txt", directorio + "ent_pat.txt")
+                        call GetFile("ent_pol.txt", directorio + "ent_pol.txt")
+                        call GetFile("ent_rce.txt", directorio + "ent_rce.txt")
+                        call GetFile("ent_rpo.txt", directorio + "ent_rpo.txt")
+                        call GetFile("ent_sin.txt", directorio + "ent_sin.txt")
+                        call GetFile("ent_rec.txt", directorio + "ent_rec.txt")
+                        call GetFile("ent_pag.txt", directorio + "ent_pag.txt")
+                        call GetFile("ent_res.txt", directorio + "ent_res.txt")
+                        call GetFile("ent_cbs.txt", directorio + "ent_cbs.txt")
+                        call GetFile("ent_edo.txt", directorio + "ent_edo.txt")
+                        'call DeleteHostFile("mark1.txt")
+                        'call DeleteHostFile("mark2.txt")
+                        'call DeleteHostFile("mark3.txt")
+                        'call DeleteHostFile("extrae.bat")
+                        'call DeleteHostFile("ent_per.txt")
+                        'call DeleteHostFile("ent_aut.txt")
+                        'call DeleteHostFile("ent_ben.txt")
+                        'call DeleteHostFile("ent_chq.txt")
+                        'call DeleteHostFile("ent_cla.txt")
+                        'call DeleteHostFile("ent_cli.txt")
+                        'call DeleteHostFile("ent_cob.txt")
+                        'call DeleteHostFile("ent_con.txt")
+                        'call DeleteHostFile("ent_gir.txt")
+                        'call DeleteHostFile("ent_pat.txt")
+                        'call DeleteHostFile("ent_pol.txt")
+                        'call DeleteHostFile("ent_rce.txt")
+                        'call DeleteHostFile("ent_rpo.txt")
+                        'call DeleteHostFile("ent_sin.txt")
+                        'call DeleteHostFile("ent_rec.txt")
+                        'call DeleteHostFile("ent_pag.txt")
+                        'call DeleteHostFile("ent_res.txt")
+                        'call DeleteHostFile("ent_cbs.txt")
+                        'call DeleteHostFile("ent_edo.txt")
+                        Print #canaima_log, "PC/NT CANAIMA: Final de transferencia en fecha y hora", Now
+                        
+                        '[                                                      ]
+                        ' ======================================================
+                        '=CARGA DE ARCHIVOS DESDE SQL NT DE CANAIMA HACIA LA BDC=
+                        ' ======================================================
+                        '[                                                      ]
+                        If Dir(directorio+"*.bad") <> "" Then
+                            Kill directorio + "*.bad"
+                        End If
+                        If Dir(directorio+"mark.txt") <> "" Then
+                           Kill directorio + "mark.txt"
+                        End if   
+                        Shell(directorio + "carga.bat")
+                        Do While Dir(directorio + "mark.txt") = ""
+                            DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+                        Loop
+                        Kill directorio + "mark.txt"
+                        Print #canaima_log, "PC/NT CANAIMA: Final de carga de datos a BDC en fecha y hora", Now
+                        If Dir(directorio + "*.bad") <> "" Then
+                            Print #canaima_log, ">>>>> ADVERTENCIA-BDC: se produjo una falla en la carga de datos desde el host Canaima hacia ORACLE a las", Time
+                        End If
+                        If modo <> "inicial" Then
+                            '[                                                                              ]
+                            ' ==============================================================================
+                            '=SI EL MODO ES DIARIA Ó MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
+                            ' ==============================================================================
+                            '[                                                                              ]
+                            Shell(directorio + "actd.bat")
+                            Do While Dir(directorio + "mark.txt") = ""
+                                DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+                            Loop
+                            Print #canaima_log, "PC/NT CANAIMA: Encontrada la marca de actd en fecha y hora", Now
+                            Kill directorio + "mark.txt"
+                            Print #canaima_log, "PC/NT CANAIMA: Final de actualizacion de datos en BDC en fecha y hora", Now
+                        End If
+
+                        '[                                                           ]
+                        ' ===========================================================
+                        '=SE BORRAN LOS ARCHIVOS DE TEXTO PARA LIBERAR ESPACIO EN C:\=
+                        ' ===========================================================
+                        '[                                                           ]
+                        'Kill directorio + "ent_per.txt"
+                        'Kill directorio + "ent_aut.txt"
+                        'Kill directorio + "ent_ben.txt"
+                        'Kill directorio + "ent_chq.txt"
+                        'Kill directorio + "ent_cla.txt"
+                        'Kill directorio + "ent_cli.txt"
+                        'Kill directorio + "ent_cob.txt"
+                        'Kill directorio + "ent_con.txt"
+                        'Kill directorio + "ent_gir.txt"
+                        'Kill directorio + "ent_pat.txt"
+                        'Kill directorio + "ent_pol.txt"
+                        'Kill directorio + "ent_rce.txt"
+                        'Kill directorio + "ent_rpo.txt"
+                        'Kill directorio + "ent_sin.txt"
+                        'Kill directorio + "ent_rec.txt"
+                        'Kill directorio + "ent_pag.txt"
+                        'Kill directorio + "ent_res.txt"
+                        'Kill directorio + "ent_cbs.txt"
+                        'Kill directorio + "ent_edo.txt"
+                        host3 = "0"  ' Fin del procesamiento para host3
+                        ' Finaliza la conexión Telnet con el host3
+                        'vt.Keys("exit\r")  '<----- Salida de sesión con NT
+                        'vt.Disconnect
+                        'vt.Close
+                    End If
+                    call DisconnectFromHost   '<----- Cierra la sesión FTP
+                    call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
+                End If
+
+                '[                                                                                                  ]
+                ' ==================================================================================================
+                '=SI TODOS LOS REQUERIMIENTOS DE TRANSFERENCIA Y CARGA HAN SIDO CULMINADOS, ENTONCES MISIÓN CUMPLIDA=
+                ' ==================================================================================================
+                '[                                                                                                  ]
+                If host1 = "0" AND host2 = "0" AND host3 = "0" Then
+                    '[                                                                                  ]
+                    ' ==================================================================================
+                    '=SI EL MODO ES INICIAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH DE ACTUALIZACIÓN ÚNICA=
+                    ' ==================================================================================
+                    '[                                                                                  ]
+                    If modo = "inicial" Then
+                        Shell("c:\Entrante\acti.bat")
+                        Do While Dir("c:\Entrante\mark.txt") = ""
+                            DoEvents        '<----- Entrega el control al sistema operacional para resolver requests
+                        Loop
+                        Kill "c:\Entrante\mark.txt"
+                    End If
+                    Exit Do
+                End If
+                Delay(60)
+            Loop
+                If hostemp1 = "1" Then
+                    Print #orinoco_log, "Fin de procesamiento en fecha y hora", Now
+                End If
+                If hostemp2 = "1" Then
+                    Print #continental_log, "Fin de procesamiento en fecha y hora", Now
+                End If
+                If hostemp3 = "1" Then 
+                    Print #canaima_log, "Fin de procesamiento en fecha y hora", Now
+                End If
+        End If
+        Shell("c:\entrante\borra.bat")
+        goto the_end
+
+
+
+'[                                           ]
+' ===========================================
+'=Seccion del programa para manejo de errores=
+' ===========================================
+'[                                           ]
+errores:
+        Dim error_val as Integer
+        
+        error_val = Err
+        If Err >= 3000 AND Err <= 4000 Then   '<----- Se trata de un error de conexión FTP
+            If errflag = 1 Then
+                Print #orinoco_log, ">>>>> ERROR EN TRANSFERENCIA FTP en fecha y hora", Now
+                ' Finaliza la conexión Telnet con el host1
+                AS1.Disconnect
+                AS1.Close
+                If hostemp2 = "1" Then
+                    ' Finaliza la conexión Telnet con el host2
+                    AS2.Disconnect
+                    AS2.Close
+                End If
+                If hostemp3 = "1" Then
+                    ' Finaliza la conexión Telnet con el host3
+                    'vt.Disconnect
+                    'vt.Close
+                End If
+                Goto the_end
+            End If
+            If errflag = 2 Then
+                Print #continental_log, ">>>>> ERROR EN TRANSFERENCIA FTP en fecha y hora", Now
+                ' Finaliza la conexión Telnet con el host2
+                AS2.Disconnect
+                AS2.Close
+                If hostemp1 = "1" Then
+                    ' Finaliza la conexión Telnet con el host1
+                    AS1.Disconnect
+                    AS1.Close
+                End If
+                If hostemp3 = "1" Then
+                    ' Finaliza la conexión Telnet con el host3
+                    'vt.Disconnect
+                    'vt.Close
+                End If
+                Goto the_end
+            End If
+            If errflag = 3 Then
+                Print #canaima_log, ">>>>> ERROR EN TRANSFERENCIA FTP en fecha y hora", Now
+                ' Finaliza la conexión Telnet con el host3
+                'vt.Disconnect
+                'vt.Close
+                If hostemp1 = "1" Then
+                    ' Finaliza la conexión Telnet con el host1
+                    AS1.Disconnect
+                    AS1.Close  
+                End If
+                If hostemp2 = "1" Then
+                    ' Finaliza la conexión Telnet con el host2
+                    AS2.Disconnect
+                    AS2.Close
+                End If
+                Goto the_end
+            End If
+        End If
+        If Err >= 429 AND Err <= 440 Then     '<----- Se trata de un error de conexión Telnet
+            If errflag = 1 Then
+                Print #orinoco_log, ">>>>> ERROR TELNET en fecha y hora", Now
+            End If
+            If errflag = 2 Then
+                Print #continental_log, ">>>>> ERROR TELNET en fecha y hora", Now
+            End If
+            If errflag = 3 Then
+                Print #canaima_log, ">>>>> ERROR TELNET en fecha y hora", Now
+            End If
+            Goto the_end
+        End If
+        If hostemp1 = "1" Then
+            Print #orinoco_log, ">>>>> RUNTIME ERROR !!!!  Codigo de Error es:", error_val
+        End If
+        If hostemp2 = "1" Then
+            Print #continental_log, ">>>>> RUNTIME ERROR !!!!  Codigo de Error es:", error_val
+        End If
+        If hostemp3 = "1" Then
+            Print #canaima_log, ">>>>> RUNTIME ERROR !!!!   Codigo de Error es:", error_val
+        End If
+
+
+'[                  ]
+' ==================
+'=Final de executive=
+' ==================
+'[                  ]
+the_end:
+        Close orinoco_log
+        Close continental_log
+        Close canaima_log
+End Sub
