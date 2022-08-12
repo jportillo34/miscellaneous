@@ -43,7 +43,7 @@ Sub Main
         Dim hostemp1 as String   '<----- Estas variables contienen las divisiones que participan en el proceso actual.
         Dim hostemp2 as String
         Dim hostemp3 as String
-        Dim errflag as Integer  '<----- Indicador de posición de un error en el programa
+        Dim errflag as Integer  '<----- Indicador de posiciÃ³n de un error en el programa
         errflag = 0
         On Error Goto errores     '<----- Subrutina de manejo de Runtime Errors
         
@@ -123,7 +123,7 @@ Sub Main
                 Print #orinoco_log,
                 Print #orinoco_log, "PROCESO DE CONSOLIDACION DESDE DIVISION ORINOCO --- FECHA:", Date
                 Print #orinoco_log, "-----------------------------------------------"
-                Print #orinoco_log, "Ejecución del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
+                Print #orinoco_log, "EjecuciÃ³n del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
             End If
             If host2 = "1" Then
                 Print #continental_log,
@@ -132,7 +132,7 @@ Sub Main
                 Print #continental_log,
                 Print #continental_log, "PROCESO DE CONSOLIDACION DESDE DIVISION CONTINENTAL --- FECHA:", Date
                 Print #continental_log, "---------------------------------------------------"
-                Print #continental_log, "Ejecución del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
+                Print #continental_log, "EjecuciÃ³n del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
             End If
             If host3 = "1" Then
                 Print #canaima_log,
@@ -141,11 +141,11 @@ Sub Main
                 Print #canaima_log,
                 Print #canaima_log, "PROCESO DE CONSOLIDACION DESDE DIVISION CANAIMA --- FECHA:", Date
                 Print #canaima_log, "-----------------------------------------------"
-                Print #canaima_log, "Ejecución del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
+                Print #canaima_log, "EjecuciÃ³n del comando: \executive\ebrun c:\executive\sac\executive.ebx ", Command
             End If
 
-            Dim fultima as String  '<----- almacena la fecha de ultima actualización para efectos de armar comandos
-            ' Componentes de la fecha de ultima actualización
+            Dim fultima as String  '<----- almacena la fecha de ultima actualizaciÃ³n para efectos de armar comandos
+            ' Componentes de la fecha de ultima actualizaciÃ³n
             Dim diau as String
             Dim mesu as String
             Dim anou as String
@@ -183,19 +183,19 @@ Sub Main
                     anoa = GetField(factual, 3, "/")
                 End If
             Else
-                ' Extrae el componente de fecha actual en la línea de comandos
+                ' Extrae el componente de fecha actual en la lÃ­nea de comandos
                 factual = GetField(Command, 6, "/")
                 diaa = GetField(factual, 1, "-")
                 mesa = GetField(factual, 2, "-")
                 anoa = GetField(factual, 3, "-")
-                ' Extrae el componente de fecha ultima actualización en la línea de comandos
+                ' Extrae el componente de fecha ultima actualizaciÃ³n en la lÃ­nea de comandos
                 fultima = GetField(Command, 5, "/")
                 diau = GetField(fultima, 1, "-")
                 mesu = GetField(fultima, 2, "-")
                 anou = GetField(fultima, 3, "-")
             End If
             Dim comando as String     '<----- Contiene el comando a ser enviado al host cualquiera
-            Dim spool as Integer   '<----- Variable de archivo de volcado de fecha ultima actualización
+            Dim spool as Integer   '<----- Variable de archivo de volcado de fecha ultima actualizaciÃ³n
             
 
             '[                                                           ]
@@ -206,43 +206,43 @@ Sub Main
 ejec1:
             If host1 = "1" Then
                 If (modo = "auto" OR modo = "manual") AND Dir("c:\Entrante\Orinoco\Diaria\spool.txt") = "" Then
-                    Print #orinoco_log, ">>>>> ADVERTENCIA-BDC: No se encontró archivo Spool de Orinoco a las", Time
+                    Print #orinoco_log, ">>>>> ADVERTENCIA-BDC: No se encontrÃ³ archivo Spool de Orinoco a las", Time
                     Shell("sqlplus SWBAPPS/QTIP@VANTIVE @c:\Entrante\Orinoco\Diaria\ACT_FECHA_ORI.sql")
                 End If
-                ' Inicia conexión Telnet con host1
-                Print #orinoco_log, "AS/400 ORINOCO: Abriendo la sesión Telnet a las", Time
+                ' Inicia conexiÃ³n Telnet con host1
+                Print #orinoco_log, "AS/400 ORINOCO: Abriendo la sesiÃ³n Telnet a las", Time
                 
                 Dim AS1 as Object
                 Set Modelo = CreateObject("HostExplorer")   '<----- Abre una interfaz con HostExplorer
-                Modelo.StartSession "ORINOCO.5250"   '<----- Abre una sesión Telnet con el host1
+                Modelo.StartSession "ORINOCO.5250"   '<----- Abre una sesiÃ³n Telnet con el host1
                 Set AS1 = Modelo.CurrentHost
                 'AS1.Hide   '<----- hace invisible la conexion Telnet
                 AS1.Keys("ENIAC@T")  '<----- User name
                 AS1.Keys("ORINOCO1@E")  '<----- User password
                 AS1.Keys("@c")   '<----- Envia Tecla F12 para retornar a linea de comandos
-                Print #orinoco_log, "AS/400 ORINOCO: Establecida la sesión Telnet a las", Time
+                Print #orinoco_log, "AS/400 ORINOCO: Establecida la sesiÃ³n Telnet a las", Time
 
                 '[                                                                                         ]
                 ' =========================================================================================
                 '=VERIFICA SI EXISTE EL ARCHIVO DE MARCA EN ESTE HOST                                      =
                 '=  La existencia de este archivo en el directorio del host y a esta altura del programa,  =
                 '=  indica que la etapa de transferencia de archivos durante la ultima corrida del proceso =
-                '=  no se realizó con exito y debe terminarse la extracción anterior.                      =
+                '=  no se realizÃ³ con exito y debe terminarse la extracciÃ³n anterior.                      =
                 ' =========================================================================================
                 '[                                                                                         ]
                 InitFTP   '<----- Abre una interfaz con HCLFTP
                 SetReplyTimeoutValue(2000)
-                call ConnectToHost("10.1.10.36",21)    '<----- Abre una sesión FTP con el host de Orinoco
+                call ConnectToHost("10.1.10.36",21)    '<----- Abre una sesiÃ³n FTP con el host de Orinoco
                 call ASCIIType    '<----- Tipo de transferencia=ASCII
                 call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
                 call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
                 marca = ls("MARK*")
                 If marca <> "" Then
                     Print #orinoco_log, "AS/400 ORINOCO: Encontrada marca antes de empezar. Eliminada", Time
-                    AS1.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                    AS1.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecuciÃ³n de programa de limpieza
                 End If
                 Delay(30)
-                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DisconnectFromHost   '<----- Cierra la sesiÃ³n FTP
                 call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
 
                 '[                                                                               ]
@@ -257,7 +257,7 @@ ejec1:
                 ' ===============================================================================
                 '[                                                                               ]
                 If modo = "auto" OR modo = "manual" Then
-                    ' Abre el archivo de spool conteniendo la fecha de ultima actualización para este host
+                    ' Abre el archivo de spool conteniendo la fecha de ultima actualizaciÃ³n para este host
                     spool = freefile
                     Open "c:\Entrante\Orinoco\Diaria\spool.txt" For Input As #spool
                     Line Input #spool, fultima    '<----- Busca la fecha de ultima actualizacion
@@ -272,7 +272,7 @@ ejec1:
                     
                     '[                                                                 ]
                     ' =================================================================
-                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN DIARIA=
+                    '=ARMA EL COMANDO PARA EJECUCIÃ“N DEL ARCHIVO CL DE SELECCIÃ“N DIARIA=
                     ' =================================================================
                     '[                                                                 ]
                      comando = "CALL INTERFAZ2/CLPROGRAMC PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
@@ -281,13 +281,13 @@ ejec1:
                 
                     '[                                                                  ]
                     ' ==================================================================
-                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN INICIAL=
+                    '=ARMA EL COMANDO PARA EJECUCIÃ“N DEL ARCHIVO CL DE SELECCIÃ“N INICIAL=
                     ' ==================================================================
                     '[                                                                  ]
                     comando = "CALL INTERFAZ2/CLPROGRAM PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
                 End If
                 AS1.Keys(comando)  '<----- Somete el comando de llamada en la linea de comandos 5250
-                Print #orinoco_log, "AS/400 ORINOCO: ordenada la extracción a las", Time
+                Print #orinoco_log, "AS/400 ORINOCO: ordenada la extracciÃ³n a las", Time
                 Print #orinoco_log, "COMANDO ENVIADO ES:", comando
             End If
 
@@ -300,42 +300,42 @@ ejec2:
             '[                                                                  ]
             If host2 = "1" Then
                 If (modo = "auto" OR modo = "manual") AND Dir("c:\Entrante\Continental\Diaria\spool.txt") = "" Then
-                    Print #continental_log, ">>>>> ADVERTENCIA-BDC: No se encontró archivo Spool de La Continental a las", Time
+                    Print #continental_log, ">>>>> ADVERTENCIA-BDC: No se encontrÃ³ archivo Spool de La Continental a las", Time
                     Shell("sqlplus SWBAPPS/QTIP@VANTIVE @c:\Entrante\Continental\Diaria\ACT_FECHA_CON.sql")
                 End If
-                ' Inicia conexión Telnet con host2
-                Print #continental_log, "AS/400 LA CONTINENTAL: Abriendo la sesión Telnet a las", Time
+                ' Inicia conexiÃ³n Telnet con host2
+                Print #continental_log, "AS/400 LA CONTINENTAL: Abriendo la sesiÃ³n Telnet a las", Time
                 Dim AS2 as Object
                 Set Modelo = CreateObject("HostExplorer")   '<----- Abre una interfaz con HostExplorer
-                Modelo.StartSession "CONTINENTAL.5250"   '<----- Abre una sesión Telnet con el host2
+                Modelo.StartSession "CONTINENTAL.5250"   '<----- Abre una sesiÃ³n Telnet con el host2
                 Set AS2 = Modelo.CurrentHost
                 'AS2.Hide   '<----- hace invisible la conexion con el host
                 AS2.Keys("ENIAC@T")  '<----- User name
                 AS2.Keys("ORINOCO1@E")  '<----- User password
                 AS2.Keys("@c")   '<----- Envia Tecla F12 para retornar a linea de comandos
-                Print #continental_log, "AS/400 LA CONTINENTAL: Establecida la sesión Telnet a las", Time                
+                Print #continental_log, "AS/400 LA CONTINENTAL: Establecida la sesiÃ³n Telnet a las", Time                
 
                 '[                                                                                         ]
                 ' =========================================================================================
                 '=VERIFICA SI EXISTE EL ARCHIVO DE MARCA EN ESTE HOST                                      =
                 '=  La existencia de este archivo en el directorio del host y a esta altura del programa,  =
                 '=  indica que la etapa de transferencia de archivos durante la ultima corrida del proceso =
-                '=  no se realizó con exito y debe terminarse la extracción anterior.                      =
+                '=  no se realizÃ³ con exito y debe terminarse la extracciÃ³n anterior.                      =
                 ' =========================================================================================
                 '[                                                                                         ]
                 InitFTP   '<----- Abre una interfaz con HCLFTP
                 SetReplyTimeoutValue(2000)
-                call ConnectToHost("161.161.85.2",21)    '<----- Abre una sesión FTP con el host de Orinoco
+                call ConnectToHost("161.161.85.2",21)    '<----- Abre una sesiÃ³n FTP con el host de Orinoco
                 call ASCIIType    '<----- Tipo de transferencia=ASCII
                 call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
                 call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
                 marca = ls("MARK*")
                 If marca <> "" Then
                     Print #continental_log, "AS/400 LA CONTINENTAL: Encontrada marca antes de empezar. Eliminada", Time
-                    AS2.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                    AS2.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecuciÃ³n de programa de limpieza
                 End If
                 Delay(30)
-                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DisconnectFromHost   '<----- Cierra la sesiÃ³n FTP
                 call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
 
                 '[                                                                               ]
@@ -350,7 +350,7 @@ ejec2:
                 ' ===============================================================================
                 '[                                                                               ]
                 If modo = "auto" OR modo = "manual" Then
-                    ' Abre el archivo de spool conteniendo la fecha de ultima actualización para este host
+                    ' Abre el archivo de spool conteniendo la fecha de ultima actualizaciÃ³n para este host
                     spool = freefile
                     Open "c:\Entrante\Continental\Diaria\spool.txt" For Input As #spool
                     Line Input #spool, fultima    '<----- Busca la fecha de ultima actualizacion
@@ -365,7 +365,7 @@ ejec2:
                     
                     '[                                                                 ]
                     ' =================================================================
-                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN DIARIA=
+                    '=ARMA EL COMANDO PARA EJECUCIÃ“N DEL ARCHIVO CL DE SELECCIÃ“N DIARIA=
                     ' =================================================================
                     '[                                                                 ]
                      comando = "CALL INTERFAZ2/CLPROGRAMC PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
@@ -374,13 +374,13 @@ ejec2:
 
                     '[                                                                  ]
                     ' ==================================================================
-                    '=ARMA EL COMANDO PARA EJECUCIÓN DEL ARCHIVO CL DE SELECCIÓN INICIAL=
+                    '=ARMA EL COMANDO PARA EJECUCIÃ“N DEL ARCHIVO CL DE SELECCIÃ“N INICIAL=
                     ' ==================================================================
                     '[                                                                  ]
                     comando = "CALL INTERFAZ2/CLPROGRAM PARM('" + diau + "' '" + mesu + "' '" + anou + "' '" + diaa + "' '" + mesa + "' '" + anoa + "')@E"
                 End If
                 AS2.Keys(comando)  '<----- Somete el comando de llamada en la linea de comandos 5250
-                Print #continental_log, "AS/400 LA CONTINENTAL: ordenada la extracción a las", Time
+                Print #continental_log, "AS/400 LA CONTINENTAL: ordenada la extracciÃ³n a las", Time
                 Print #continental_log, "COMANDO ENVIADO ES:", comando
             End If
 
@@ -393,25 +393,25 @@ ejec3:
             '[                                                           ]
             If host3 = "1" Then
                 If (modo = "auto" OR modo = "manual") AND Dir("c:\Entrante\Canaima\Diaria\spool.txt") = "" Then
-                    Print #canaima_log, ">>>>> ADVERTENCIA-BDC: No se encontró archivo Spool de Canaima a las", Time
+                    Print #canaima_log, ">>>>> ADVERTENCIA-BDC: No se encontrÃ³ archivo Spool de Canaima a las", Time
                     Shell("sqlplus SWBAPPS/QTIP@VANTIVE @c:\Entrante\Canaima\Diaria\ACT_FECHA_CAN.sql")
                 End If
 
 
 
 
-                ' Inicia conexión Telnet con host3
-                'Print #canaima_log, "PC/NT CANAIMA: Abriendo la sesión Telnet a las", Time
+                ' Inicia conexiÃ³n Telnet con host3
+                'Print #canaima_log, "PC/NT CANAIMA: Abriendo la sesiÃ³n Telnet a las", Time
                 'Dim vt as Object
                 'Set Modelo = CreateObject("HostExplorer")   '<----- Abre una interfaz con HostExplorer
-                'Modelo.StartSession "CANAIMA.VT"   '<----- Abre una sesión VT con el host3
+                'Modelo.StartSession "CANAIMA.VT"   '<----- Abre una sesiÃ³n VT con el host3
                 'Set vt = Modelo.CurrentHost
                 'vt.Hide   '<----- hace invisible la conexion con el host
                 'vt.Keys("Adminsac\r")  '<----- User name
                 'vt.Keys("ADMINSAC\r")  '<----- User password
                 'vt.Keys("a")
                 'vt.Keys("cd c:\\Entrante\r")
-                'Print #canaima_log, "PC/NT CANAIMA: Establecida la sesión Telnet a las", Time
+                'Print #canaima_log, "PC/NT CANAIMA: Establecida la sesiÃ³n Telnet a las", Time
 
 
 
@@ -421,12 +421,12 @@ ejec3:
                 '=VERIFICA SI EXISTE EL ARCHIVO DE MARCA EN ESTE HOST                                      =
                 '=  La existencia de este archivo en el directorio del host y a esta altura del programa,  =
                 '=  indica que la etapa de transferencia de archivos durante la ultima corrida del proceso =
-                '=  no se realizó con exito y debe terminarse la extracción anterior.                      =
+                '=  no se realizÃ³ con exito y debe terminarse la extracciÃ³n anterior.                      =
                 ' =========================================================================================
                 '[                                                                                         ]
                 InitFTP   '<----- Abre una interfaz con HCLFTP
                 SetReplyTimeoutValue(600)   '<----- En el host debe existir un archivo \winnt\system\hummingbird\ftpd.ini
-                call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesión FTP con el host de Canaima
+                call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesiÃ³n FTP con el host de Canaima
                 call ASCIIType    '<----- Tipo de transferencia=ASCII
                 call UserLogin("Adminsac", "ADMINSAC","")    '<----- User Login & Password
                 call ChangeHostDir("c:\Entrante")    '<----- Cambia el directorio de trabajo
@@ -435,10 +435,10 @@ ejec3:
                     call DeleteHostFile("mark3.txt")   '<----- Elimina cualquier archivo de marca sobrante de anteriores operaciones
                     Print #canaima_log, "PC/NT CANAIMA: Encontrada la marca antes de empezar. Eliminada", Time
                 End If
-                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DisconnectFromHost   '<----- Cierra la sesiÃ³n FTP
                 call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
                 If modo = "auto" OR modo = "manual" Then
-                    ' Abre el archivo de spool conteniendo la fecha de ultima actualización para este host
+                    ' Abre el archivo de spool conteniendo la fecha de ultima actualizaciÃ³n para este host
                     spool = freefile
                     Open "c:\Entrante\Canaima\Diaria\spool.txt" For Input As #spool
                     Line Input #spool, fultima    '<----- Busca la fecha de ultima actualizacion
@@ -451,7 +451,7 @@ ejec3:
                     anou = GetField(fultima, 3, "/")
                     Close #spool   '<----- Cierra el archivo de spool para este host
                 End If
-                ' Adaptacion del campo mes y año a formato para SQL Server en Canaima
+                ' Adaptacion del campo mes y aÃ±o a formato para SQL Server en Canaima
                 mesa = meses(Val(mesa))
                 anoa = Right(anoa, 2)
                 mesu = meses(Val(mesu))
@@ -467,7 +467,7 @@ ejec3:
                 '=TABLAS TEMPORALES, EXTRACCION Y DESCARGA DE DATOS EN EL SQL NT DE CANAIMA =
                 ' ==========================================================================
                 '[                                                                          ]
-                Dim descarga as Integer  '<----- Archivo .bat para la ejecución de scripts SQL en Canaima
+                Dim descarga as Integer  '<----- Archivo .bat para la ejecuciÃ³n de scripts SQL en Canaima
                 descarga = freefile
                 Open "c:\executive\sac\extrae.bat" For Append As #descarga
 
@@ -595,7 +595,7 @@ ejec3:
                 '[                                                  ]
                 InitFTP   '<----- Abre una interfaz con HCLFTP
                 SetReplyTimeoutValue(2000)   '<----- En el host debe existir un archivo \winnt\system\hummingbird\ftpd.ini
-                call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesión FTP con el host de Canaima
+                call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesiÃ³n FTP con el host de Canaima
                 call ASCIIType    '<----- Tipo de transferencia=ASCII
                 call UserLogin("Adminsac", "ADMINSAC","")    '<----- User Login & Password
                 call ChangeHostDir("c:\Entrante")    '<----- Cambia el directorio de trabajo
@@ -605,12 +605,12 @@ ejec3:
 
                 '[                                                                       ]
                 ' =======================================================================
-                '=ORDENA EL PREPARAR LAS TABLAS TEMPORALES ANTES DEL PROCESO DE SELECCIÓN=
+                '=ORDENA EL PREPARAR LAS TABLAS TEMPORALES ANTES DEL PROCESO DE SELECCIÃ“N=
                 ' =======================================================================
                 '[                                                                       ]
 
 
-                'vt.Keys("prepara.bat\r")  '<----- Comando de ejecución de preparar ambiente en SQL
+                'vt.Keys("prepara.bat\r")  '<----- Comando de ejecuciÃ³n de preparar ambiente en SQL
                 'While ls("mark.txt") = ""   '<----- Espera por fin de ejecucion
                 '    Delay(30)
                 'Wend
@@ -619,10 +619,10 @@ ejec3:
 
                 '[                                                   ]
                 ' ===================================================
-                '=ORDENA LA SELECCIÓN DE LOS DATOS EN EL HOST CANAIMA=
+                '=ORDENA LA SELECCIÃ“N DE LOS DATOS EN EL HOST CANAIMA=
                 ' ===================================================
                 '[                                                   ]
-                'vt.Keys("extrae.bat\r")  '<----- Comando de ejecución de la extraccion de datos
+                'vt.Keys("extrae.bat\r")  '<----- Comando de ejecuciÃ³n de la extraccion de datos
                 'While ls("mark.txt") = ""   '<----- Espera por fin de ejecucion
                 '    Delay(60)
                 'Wend
@@ -634,14 +634,14 @@ ejec3:
                 '=ORDENA LA DESCARGA DE LOS DATOS DESDE LAS TABLAS TEMPORALES HACIA LOS ARCHIVOS TEMPORALES=
                 ' =========================================================================================
                 '[                                                                                         ]
-                'vt.Keys("descarga.bat\r")  '<----- Comando de ejecución de la descarga de datos hacia archivos txt
+                'vt.Keys("descarga.bat\r")  '<----- Comando de ejecuciÃ³n de la descarga de datos hacia archivos txt
                 'While ls("mark.txt") = ""   '<----- Espera por fin de ejecucion
                 '    Delay(30)
                 'Wend
                 'Print #canaima_log, "PC/NT CANAIMA: Descargados los datos en archivos texto", Time
                 'DeleteHostFile("extrae.bat")
                 'Print #canaima_log, "PC/NT CANAIMA: Eliminado el archivo extrae.bat remoto", Time
-                call DisconnectFromHost   '<----- Cierra la sesión FTP
+                call DisconnectFromHost   '<----- Cierra la sesiÃ³n FTP
                 call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
                 'Print #canaima_log, "PC/NT CANAIMA: finalizado el proceso de extraccion a las", Time
             End If
@@ -666,7 +666,7 @@ trs1:
                     errflag = 1   '<----- marca
                     InitFTP   '<----- Abre una interfaz con HCLFTP
                     SetReplyTimeoutValue(2000)
-                    call ConnectToHost("10.1.10.36",21)    '<----- Abre una sesión FTP con el host de Orinoco
+                    call ConnectToHost("10.1.10.36",21)    '<----- Abre una sesiÃ³n FTP con el host de Orinoco
                     call ASCIIType    '<----- Tipo de transferencia=ASCII
                     call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
                     call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
@@ -674,7 +674,7 @@ trs1:
                                         
                     '[                                                                               ]
                     ' ===============================================================================
-                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÓN Ó SELECCIÓN=
+                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÃ“N Ã“ SELECCIÃ“N=
                     ' ===============================================================================
                     '[                                                                               ]
                     marca = ls("MARK*")
@@ -721,7 +721,7 @@ trs1:
                         '=ESTE ES EL ARCHIVO DE COMANDOS CL EL CUAL VACIA LOS CONTENIDOS DE LOS ARCHIVOS TEMPORALES=
                         ' =========================================================================================
                         '[                                                                                         ]
-                        AS1.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                        AS1.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecuciÃ³n de programa de limpieza
                         Print #orinoco_log, "AS/400 ORINOCO: Final de transferencia en fecha y hora", Now
 
                         '[                                                      ]
@@ -747,7 +747,7 @@ trs1:
                         If modo <> "inicial" Then
                             '[                                                                              ]
                             ' ==============================================================================
-                            '=SI EL MODO ES DIARIA Ó MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
+                            '=SI EL MODO ES DIARIA Ã“ MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
                             ' ==============================================================================
                             '[                                                                              ]
                             Shell(directorio + "actd.bat")
@@ -785,12 +785,12 @@ trs1:
                         'Kill directorio + "COBERS.TXT"
                         'Kill directorio + "EDOCTA.TXT"
                         host1 = "0"  ' Fin del procesamiento para host1
-                        ' Finaliza la conexión Telnet con el host1
-                        AS1.Keys("90@E")  '<----- Salida de sesión con OS/400
+                        ' Finaliza la conexiÃ³n Telnet con el host1
+                        AS1.Keys("90@E")  '<----- Salida de sesiÃ³n con OS/400
                         AS1.Disconnect
                         AS1.Close
                     End If
-                    call DisconnectFromHost   '<----- Cierra la sesión FTP
+                    call DisconnectFromHost   '<----- Cierra la sesiÃ³n FTP
                     call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
                 End If
 
@@ -804,7 +804,7 @@ trs2:
                     errflag = 2 '<----- marca
                     InitFTP   '<----- Abre una interfaz con HCLFTP
                     SetReplyTimeoutValue(2000)
-                    call ConnectToHost("161.161.85.2",21)    '<----- Abre una sesión FTP con el host La Continental
+                    call ConnectToHost("161.161.85.2",21)    '<----- Abre una sesiÃ³n FTP con el host La Continental
                     call ASCIIType    '<----- Tipo de transferencia=ASCII
                     call UserLogin("ENIAC", "ORINOCO1","")    '<----- User Login & Password
                     call ChangeHostDir("INTERFAZ2")    '<----- Cambia el directorio de trabajo
@@ -812,7 +812,7 @@ trs2:
 
                     '[                                                                               ]
                     ' ===============================================================================
-                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÓN Ó SELECCIÓN=
+                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÃ“N Ã“ SELECCIÃ“N=
                     ' ===============================================================================
                     '[                                                                               ]
                     marca = ls("MARK*")
@@ -849,7 +849,7 @@ trs2:
                         '=ESTE ES EL ARCHIVO DE COMANDOS CL EL CUAL VACIA LOS CONTENIDOS DE LOS ARCHIVOS TEMPORALES=
                         ' =========================================================================================
                         '[                                                                                         ]
-                        AS2.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecución de programa de limpieza
+                        AS2.Keys("CALL INTERFAZ2/CLBORRA@E")  '<----- Comando de ejecuciÃ³n de programa de limpieza
                         Print #continental_log, "AS/400 ORINOCO: Final de transferencia en fecha y hora", Now
                         
                         '[                                                             ]
@@ -875,7 +875,7 @@ trs2:
                         If modo <> "inicial" Then
                             '[                                                                              ]
                             ' ==============================================================================
-                            '=SI EL MODO ES DIARIA Ó MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
+                            '=SI EL MODO ES DIARIA Ã“ MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
                             ' ==============================================================================
                             '[                                                                              ]
                             Shell(directorio + "actd.bat")
@@ -914,12 +914,12 @@ trs2:
                         'Kill directorio + "COBERS.TXT"
                         'Kill directorio + "EDOCTA.TXT"
                         host2 = "0"  ' Fin del procesamiento para host2
-                        ' Finaliza la conexión Telnet con el host2
-                        AS2.Keys("90@E")  '<----- Salida de sesión con OS/400
+                        ' Finaliza la conexiÃ³n Telnet con el host2
+                        AS2.Keys("90@E")  '<----- Salida de sesiÃ³n con OS/400
                         AS2.Disconnect
                         AS2.Close
                     End If
-                    call DisconnectFromHost   '<----- Cierra la sesión FTP
+                    call DisconnectFromHost   '<----- Cierra la sesiÃ³n FTP
                     call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
                 End If
 
@@ -934,7 +934,7 @@ trs3:
                     errflag = 3 '<----- marca
                     InitFTP   '<----- Abre una interfaz con HCLFTP
                     SetReplyTimeoutValue(2000)
-                    call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesión FTP con el host Canaima
+                    call ConnectToHost("10.1.13.10",21)    '<----- Abre una sesiÃ³n FTP con el host Canaima
                     call ASCIIType    '<----- Tipo de transferencia=ASCII
                     call UserLogin("Adminsac", "ADMINSAC","")    '<----- User Login & Password
                     call ChangeHostDir("c:\Entrante")    '<----- Cambia el directorio de trabajo
@@ -942,7 +942,7 @@ trs3:
                                         
                     '[                                                                               ]
                     ' ===============================================================================
-                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÓN Ó SELECCIÓN=
+                    '=COMPRUEBA LA EXISTENCIA DEL ARCHIVO DE MARCA DE FINAL DE EXTRACCIÃ“N Ã“ SELECCIÃ“N=
                     ' ===============================================================================
                     '[                                                                               ]
                     marca = ls("mark3.txt")
@@ -1020,7 +1020,7 @@ trs3:
                         If modo <> "inicial" Then
                             '[                                                                              ]
                             ' ==============================================================================
-                            '=SI EL MODO ES DIARIA Ó MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
+                            '=SI EL MODO ES DIARIA Ã“ MANUAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH PARTICULAR=
                             ' ==============================================================================
                             '[                                                                              ]
                             Shell(directorio + "actd.bat")
@@ -1057,24 +1057,24 @@ trs3:
                         'Kill directorio + "ent_cbs.txt"
                         'Kill directorio + "ent_edo.txt"
                         host3 = "0"  ' Fin del procesamiento para host3
-                        ' Finaliza la conexión Telnet con el host3
-                        'vt.Keys("exit\r")  '<----- Salida de sesión con NT
+                        ' Finaliza la conexiÃ³n Telnet con el host3
+                        'vt.Keys("exit\r")  '<----- Salida de sesiÃ³n con NT
                         'vt.Disconnect
                         'vt.Close
                     End If
-                    call DisconnectFromHost   '<----- Cierra la sesión FTP
+                    call DisconnectFromHost   '<----- Cierra la sesiÃ³n FTP
                     call DeinitFTP     '<----- Cierra la interfaz con HCLFTP
                 End If
 
                 '[                                                                                                  ]
                 ' ==================================================================================================
-                '=SI TODOS LOS REQUERIMIENTOS DE TRANSFERENCIA Y CARGA HAN SIDO CULMINADOS, ENTONCES MISIÓN CUMPLIDA=
+                '=SI TODOS LOS REQUERIMIENTOS DE TRANSFERENCIA Y CARGA HAN SIDO CULMINADOS, ENTONCES MISIÃ“N CUMPLIDA=
                 ' ==================================================================================================
                 '[                                                                                                  ]
                 If host1 = "0" AND host2 = "0" AND host3 = "0" Then
                     '[                                                                                  ]
                     ' ==================================================================================
-                    '=SI EL MODO ES INICIAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH DE ACTUALIZACIÓN ÚNICA=
+                    '=SI EL MODO ES INICIAL, ENTONCES SE EJECUTA EL ARCHIVO BATCH DE ACTUALIZACIÃ“N ÃšNICA=
                     ' ==================================================================================
                     '[                                                                                  ]
                     If modo = "inicial" Then
@@ -1112,19 +1112,19 @@ errores:
         Dim error_val as Integer
         
         error_val = Err
-        If Err >= 3000 AND Err <= 4000 Then   '<----- Se trata de un error de conexión FTP
+        If Err >= 3000 AND Err <= 4000 Then   '<----- Se trata de un error de conexiÃ³n FTP
             If errflag = 1 Then
                 Print #orinoco_log, ">>>>> ERROR EN TRANSFERENCIA FTP en fecha y hora", Now
-                ' Finaliza la conexión Telnet con el host1
+                ' Finaliza la conexiÃ³n Telnet con el host1
                 AS1.Disconnect
                 AS1.Close
                 If hostemp2 = "1" Then
-                    ' Finaliza la conexión Telnet con el host2
+                    ' Finaliza la conexiÃ³n Telnet con el host2
                     AS2.Disconnect
                     AS2.Close
                 End If
                 If hostemp3 = "1" Then
-                    ' Finaliza la conexión Telnet con el host3
+                    ' Finaliza la conexiÃ³n Telnet con el host3
                     'vt.Disconnect
                     'vt.Close
                 End If
@@ -1132,16 +1132,16 @@ errores:
             End If
             If errflag = 2 Then
                 Print #continental_log, ">>>>> ERROR EN TRANSFERENCIA FTP en fecha y hora", Now
-                ' Finaliza la conexión Telnet con el host2
+                ' Finaliza la conexiÃ³n Telnet con el host2
                 AS2.Disconnect
                 AS2.Close
                 If hostemp1 = "1" Then
-                    ' Finaliza la conexión Telnet con el host1
+                    ' Finaliza la conexiÃ³n Telnet con el host1
                     AS1.Disconnect
                     AS1.Close
                 End If
                 If hostemp3 = "1" Then
-                    ' Finaliza la conexión Telnet con el host3
+                    ' Finaliza la conexiÃ³n Telnet con el host3
                     'vt.Disconnect
                     'vt.Close
                 End If
@@ -1149,23 +1149,23 @@ errores:
             End If
             If errflag = 3 Then
                 Print #canaima_log, ">>>>> ERROR EN TRANSFERENCIA FTP en fecha y hora", Now
-                ' Finaliza la conexión Telnet con el host3
+                ' Finaliza la conexiÃ³n Telnet con el host3
                 'vt.Disconnect
                 'vt.Close
                 If hostemp1 = "1" Then
-                    ' Finaliza la conexión Telnet con el host1
+                    ' Finaliza la conexiÃ³n Telnet con el host1
                     AS1.Disconnect
                     AS1.Close  
                 End If
                 If hostemp2 = "1" Then
-                    ' Finaliza la conexión Telnet con el host2
+                    ' Finaliza la conexiÃ³n Telnet con el host2
                     AS2.Disconnect
                     AS2.Close
                 End If
                 Goto the_end
             End If
         End If
-        If Err >= 429 AND Err <= 440 Then     '<----- Se trata de un error de conexión Telnet
+        If Err >= 429 AND Err <= 440 Then     '<----- Se trata de un error de conexiÃ³n Telnet
             If errflag = 1 Then
                 Print #orinoco_log, ">>>>> ERROR TELNET en fecha y hora", Now
             End If
